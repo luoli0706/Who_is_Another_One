@@ -173,6 +173,19 @@ export function GameBoard({
               </div>
             )}
 
+            {/* Online Mode - Wait for first speaker selection */}
+            {roomState.status === 'select_first_speaker' && !isHost && (
+              <div className="glass-card rounded-2xl p-6 border border-slate-900 text-center space-y-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-950 flex items-center justify-center mx-auto text-indigo-400 border border-indigo-900 animate-pulse">
+                  ⏱️
+                </div>
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">等待指定首发言人</h3>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+                  房主正在挑选本局的第一个发言玩家，请做好描述发言的准备。
+                </p>
+              </div>
+            )}
+
             {/* Offline Mode - Player Wait Board */}
             {roomState.mode === 'offline' && roomState.status === 'offline_playing' && (
               <div className="glass-card rounded-2xl p-6 border border-slate-900 text-center space-y-4">

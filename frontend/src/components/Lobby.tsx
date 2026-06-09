@@ -99,7 +99,7 @@ export function Lobby({
     
     // WS message will be sent after connection opens, but we also save setup configs to apply
     setTimeout(() => {
-      onSend('start_game', {
+      onSend('update_config', {
         mode: createMode,
         categoryIds: selectedCats,
         maxPlayers,
@@ -514,7 +514,8 @@ export function Lobby({
                   mode: roomState.mode,
                   categoryIds: roomState.categoryIds,
                   totalRounds: roomState.totalRounds,
-                  ownerParticipates: roomState.ownerParticipates
+                  ownerParticipates: roomState.ownerParticipates,
+                  maxPlayers: roomState.maxPlayers
                 });
               }}
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"

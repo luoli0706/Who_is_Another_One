@@ -405,11 +405,27 @@ wss.on('connection', (ws: ExtWebSocket) => {
 
   ws.on('close', () => {
     if (ws.roomId && ws.playerId) {
-      const room = roomManager.leaveRoom(ws.roomId, ws.playerId);
-      if (room) {
-        console.log(`Player ${ws.playerId} disconnected from Room ${ws.roomId}`);
-        roomManager.broadcastRoomState(room);
-      }
+      const roomId = ws.roomId;
+      const playerId = ws.playerId;
+
+      setTimeout(() => {
+        const room = roomManager.getRoom(roomId);
+        if (!room) return;
+
+        const player = room.players.get(playerId);
+        // If the player reconnected within the grace period (having a new open WS connection),
+        // do not clean them up!
+        if (player && player.ws !== ws && player.ws.readyState === WebSocket.OPEN) {
+          console.log(`Player ${playerId} reconnected to Room ${roomId} within grace period.`);
+          return;
+        }
+
+        const updatedRoom = roomManager.leaveRoom(roomId, playerId);
+        if (updatedRoom) {
+          console.log(`Player ${playerId} disconnected from Room ${roomId} (cleanup)`);
+          roomManager.broadcastRoomState(updatedRoom);
+        }
+      }, 3000); // 3 seconds grace period
     }
   });
 });
