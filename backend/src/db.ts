@@ -9,7 +9,11 @@ if (!fs.existsSync(dbDir)) {
 }
 
 const dbPath = path.join(dbDir, 'words.db');
-const db = new sqlite3.Database(dbPath);
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (!err) {
+    db.run('PRAGMA foreign_keys = ON');
+  }
+});
 
 // Promisify SQLite methods
 export const query = {
@@ -56,6 +60,15 @@ export interface WordPair {
   created_at: string;
 }
 
+export interface CategoryBackup {
+  id: number;
+  category_id: number;
+  backup_date: string;
+  name: string;
+  description: string | null;
+  words_json: string;
+}
+
 // Initialize tables and default seed data
 export async function initDb() {
   // Create tables
@@ -76,6 +89,18 @@ export async function initDb() {
       word_a TEXT NOT NULL,
       word_b TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    )
+  `);
+
+  await query.run(`
+    CREATE TABLE IF NOT EXISTS category_backups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER NOT NULL,
+      backup_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      name TEXT NOT NULL,
+      description TEXT,
+      words_json TEXT NOT NULL,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
     )
   `);
@@ -150,6 +175,41 @@ export async function initDb() {
     }
     console.log('Seeding complete!');
   }
+
+  // Seed initial backups if backups table is empty
+  const backupCount = await query.get<{ total: number }>('SELECT count(*) as total FROM category_backups');
+  if (backupCount && backupCount.total === 0) {
+    console.log('Seeding initial backups for default categories...');
+    const seededCategories = await getCategories();
+    for (const cat of seededCategories) {
+      const words = await getWordsByCategory(cat.id);
+      
+      // Backup 1: 1 day ago (same words)
+      const date1 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const wordsJson1 = JSON.stringify(words.map(w => [w.word_a, w.word_b]));
+      await query.run(
+        'INSERT INTO category_backups (category_id, name, description, words_json, backup_date) VALUES (?, ?, ?, ?, ?)',
+        [cat.id, cat.name, cat.description, wordsJson1, date1]
+      );
+
+      // Backup 2: 2 days ago (only first 5 pairs)
+      const date2 = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      const wordsJson2 = JSON.stringify(words.slice(0, 5).map(w => [w.word_a, w.word_b]));
+      await query.run(
+        'INSERT INTO category_backups (category_id, name, description, words_json, backup_date) VALUES (?, ?, ?, ?, ?)',
+        [cat.id, cat.name, cat.description, wordsJson2, date2]
+      );
+
+      // Backup 3: 3 days ago (only first 2 pairs)
+      const date3 = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      const wordsJson3 = JSON.stringify(words.slice(0, 2).map(w => [w.word_a, w.word_b]));
+      await query.run(
+        'INSERT INTO category_backups (category_id, name, description, words_json, backup_date) VALUES (?, ?, ?, ?, ?)',
+        [cat.id, cat.name, cat.description, wordsJson3, date3]
+      );
+    }
+    console.log('Initial backups seeded successfully!');
+  }
 }
 
 // Database helper operations
@@ -188,4 +248,102 @@ export async function addWordPair(categoryId: number, wordA: string, wordB: stri
   const newPair = await query.get<WordPair>('SELECT * FROM word_pairs WHERE id = ?', [result.lastID]);
   if (!newPair) throw new Error('Failed to add word pair');
   return newPair;
+}
+
+export async function updateCategory(id: number, name: string, description: string | null): Promise<Category> {
+  await query.run(
+    'UPDATE categories SET name = ?, description = ? WHERE id = ?',
+    [name, description, id]
+  );
+  const updated = await query.get<Category>('SELECT * FROM categories WHERE id = ?', [id]);
+  if (!updated) throw new Error('Category not found');
+  return updated;
+}
+
+export async function deleteCategory(id: number): Promise<void> {
+  await query.run('DELETE FROM categories WHERE id = ?', [id]);
+}
+
+export async function deleteWordPair(id: number): Promise<void> {
+  await query.run('DELETE FROM word_pairs WHERE id = ?', [id]);
+}
+
+export async function getCategoryBackups(categoryId: number): Promise<CategoryBackup[]> {
+  return query.all<CategoryBackup>(
+    'SELECT * FROM category_backups WHERE category_id = ? ORDER BY backup_date DESC, id DESC',
+    [categoryId]
+  );
+}
+
+export async function rollbackToBackup(categoryId: number, backupId: number): Promise<void> {
+  const backup = await query.get<CategoryBackup>(
+    'SELECT * FROM category_backups WHERE id = ? AND category_id = ?',
+    [backupId, categoryId]
+  );
+  if (!backup) throw new Error('Backup not found');
+
+  // 1. Update category details
+  await query.run(
+    'UPDATE categories SET name = ?, description = ? WHERE id = ?',
+    [backup.name, backup.description, categoryId]
+  );
+
+  // 2. Delete current word pairs
+  await query.run('DELETE FROM word_pairs WHERE category_id = ?', [categoryId]);
+
+  // 3. Restore word pairs
+  const wordPairs: [string, string][] = JSON.parse(backup.words_json);
+  for (const pair of wordPairs) {
+    await query.run(
+      'INSERT INTO word_pairs (category_id, word_a, word_b) VALUES (?, ?, ?)',
+      [categoryId, pair[0], pair[1]]
+    );
+  }
+}
+
+export async function createDailyBackupForAllCategories(): Promise<void> {
+  const categories = await getCategories();
+  for (const cat of categories) {
+    const words = await getWordsByCategory(cat.id);
+    const wordsJson = JSON.stringify(words.map(w => [w.word_a, w.word_b]));
+
+    // Insert backup
+    await query.run(
+      'INSERT INTO category_backups (category_id, name, description, words_json) VALUES (?, ?, ?, ?)',
+      [cat.id, cat.name, cat.description, wordsJson]
+    );
+
+    // Keep only the latest 3 backups for this category
+    const backups = await query.all<{ id: number }>('SELECT id FROM category_backups WHERE category_id = ? ORDER BY backup_date DESC, id DESC', [cat.id]);
+    if (backups.length > 3) {
+      const idsToDelete = backups.slice(3).map(b => b.id);
+      const placeholders = idsToDelete.map(() => '?').join(',');
+      await query.run(`DELETE FROM category_backups WHERE id IN (${placeholders})`, idsToDelete);
+    }
+  }
+}
+
+export function scheduleMidnightBackup() {
+  const now = new Date();
+  const nextMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1, // Next day
+    0, 0, 0, 0 // Midnight
+  );
+  const timeToMidnight = nextMidnight.getTime() - now.getTime();
+
+  console.log(`Scheduled next midnight backup in ${(timeToMidnight / 1000 / 60).toFixed(2)} minutes.`);
+
+  setTimeout(async () => {
+    try {
+      console.log('Running daily midnight backup for word libraries...');
+      await createDailyBackupForAllCategories();
+      console.log('Daily midnight backup completed.');
+    } catch (err) {
+      console.error('Failed to run midnight backup:', err);
+    }
+    // Schedule the next one recursively
+    scheduleMidnightBackup();
+  }, timeToMidnight);
 }

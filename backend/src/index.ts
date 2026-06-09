@@ -2,7 +2,19 @@ import http from 'http';
 import url from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomManager } from './roomManager';
-import { initDb, getCategories, createCategory, addWordPair, getWordsByCategory } from './db';
+import {
+  initDb,
+  getCategories,
+  createCategory,
+  addWordPair,
+  getWordsByCategory,
+  updateCategory,
+  deleteCategory,
+  deleteWordPair,
+  getCategoryBackups,
+  rollbackToBackup,
+  scheduleMidnightBackup
+} from './db';
 import { WsMessage } from './types';
 
 const PORT = 17712;
@@ -48,6 +60,7 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = url.parse(req.url || '', true);
   const pathname = parsedUrl.pathname || '';
+  const parts = pathname.split('/');
 
   try {
     // 1. GET /api/categories
@@ -58,8 +71,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 2. GET /api/categories/:id/words
-    if (req.method === 'GET' && pathname.startsWith('/api/categories/') && pathname.endsWith('/words')) {
-      const parts = pathname.split('/');
+    if (req.method === 'GET' && parts[1] === 'api' && parts[2] === 'categories' && parts[4] === 'words' && parts.length === 5) {
       const catId = parseInt(parts[3], 10);
       if (isNaN(catId)) {
         jsonResponse(res, 400, { error: 'Invalid Category ID' });
@@ -83,8 +95,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 4. POST /api/categories/:id/words
-    if (req.method === 'POST' && pathname.startsWith('/api/categories/') && pathname.endsWith('/words')) {
-      const parts = pathname.split('/');
+    if (req.method === 'POST' && parts[1] === 'api' && parts[2] === 'categories' && parts[4] === 'words' && parts.length === 5) {
       const catId = parseInt(parts[3], 10);
       if (isNaN(catId)) {
         jsonResponse(res, 400, { error: 'Invalid Category ID' });
@@ -100,7 +111,73 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 5. GET /api/rooms (Lobby Room List)
+    // New 5: PUT /api/categories/:id
+    if (req.method === 'PUT' && parts[1] === 'api' && parts[2] === 'categories' && parts.length === 4) {
+      const catId = parseInt(parts[3], 10);
+      if (isNaN(catId)) {
+        jsonResponse(res, 400, { error: 'Invalid Category ID' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (!body.name) {
+        jsonResponse(res, 400, { error: 'Category name is required' });
+        return;
+      }
+      const category = await updateCategory(catId, body.name, body.description || null);
+      jsonResponse(res, 200, category);
+      return;
+    }
+
+    // New 6: DELETE /api/categories/:id
+    if (req.method === 'DELETE' && parts[1] === 'api' && parts[2] === 'categories' && parts.length === 4) {
+      const catId = parseInt(parts[3], 10);
+      if (isNaN(catId)) {
+        jsonResponse(res, 400, { error: 'Invalid Category ID' });
+        return;
+      }
+      await deleteCategory(catId);
+      jsonResponse(res, 200, { success: true });
+      return;
+    }
+
+    // New 7: DELETE /api/categories/:catId/words/:wordId
+    if (req.method === 'DELETE' && parts[1] === 'api' && parts[2] === 'categories' && parts[4] === 'words' && parts.length === 6) {
+      const wordId = parseInt(parts[5], 10);
+      if (isNaN(wordId)) {
+        jsonResponse(res, 400, { error: 'Invalid Word ID' });
+        return;
+      }
+      await deleteWordPair(wordId);
+      jsonResponse(res, 200, { success: true });
+      return;
+    }
+
+    // New 8: GET /api/categories/:catId/backups
+    if (req.method === 'GET' && parts[1] === 'api' && parts[2] === 'categories' && parts[4] === 'backups' && parts.length === 5) {
+      const catId = parseInt(parts[3], 10);
+      if (isNaN(catId)) {
+        jsonResponse(res, 400, { error: 'Invalid Category ID' });
+        return;
+      }
+      const backups = await getCategoryBackups(catId);
+      jsonResponse(res, 200, backups);
+      return;
+    }
+
+    // New 9: POST /api/categories/:catId/backups/:backupId/rollback
+    if (req.method === 'POST' && parts[1] === 'api' && parts[2] === 'categories' && parts[4] === 'backups' && parts[6] === 'rollback' && parts.length === 7) {
+      const catId = parseInt(parts[3], 10);
+      const backupId = parseInt(parts[5], 10);
+      if (isNaN(catId) || isNaN(backupId)) {
+        jsonResponse(res, 400, { error: 'Invalid Parameters' });
+        return;
+      }
+      await rollbackToBackup(catId, backupId);
+      jsonResponse(res, 200, { success: true });
+      return;
+    }
+
+    // 10. GET /api/rooms (Lobby Room List)
     if (req.method === 'GET' && pathname === '/api/rooms') {
       const activeRooms = roomManager.getAllRooms()
         .filter(r => r.status === 'lobby' && r.players.size < r.maxPlayers) // non-full lobby rooms
@@ -474,6 +551,7 @@ server.on('upgrade', (req, socket, head) => {
 async function main() {
   console.log('Initializing SQLite Database...');
   await initDb();
+  scheduleMidnightBackup(); // Start the midnight scheduler
   
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Who is Undercover Backend server running at http://localhost:${PORT}`);
