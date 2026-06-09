@@ -12,6 +12,7 @@ interface GameBoardProps {
   refereeWordOptions: RefereeWordOption[];
   chatMessages: ChatMessage[];
   onSend: (type: string, payload: any) => void;
+  onLeave: () => void;
 }
 
 export function GameBoard({
@@ -20,11 +21,13 @@ export function GameBoard({
   yourWord,
   refereeWordOptions,
   chatMessages,
-  onSend
+  onSend,
+  onLeave
 }: GameBoardProps) {
   const [showWord, setShowWord] = useState(false);
   const [description, setDescription] = useState('');
   const [votedTargetId, setVotedTargetId] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +35,24 @@ export function GameBoard({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Description countdown timer
+  useEffect(() => {
+    if (roomState.status !== 'playing_description' || !roomState.speakerDeadline) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimeLeft = () => {
+      const remaining = Math.max(0, Math.ceil((roomState.speakerDeadline! - Date.now()) / 1000));
+      setTimeLeft(remaining);
+    };
+
+    updateTimeLeft();
+
+    const interval = setInterval(updateTimeLeft, 250);
+    return () => clearInterval(interval);
+  }, [roomState.status, roomState.speakerDeadline]);
 
   const handleSendDescription = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,10 +99,29 @@ export function GameBoard({
             {roomState.status === 'select_first_speaker' && '指定首发言人'}
           </h2>
         </div>
-        <div className="text-right">
-          <span className="text-2xs bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full text-gray-400 font-bold">
-            存活玩家: {roomState.players.filter(p => p.isAlive && p.role !== 'referee').length}人
-          </span>
+        <div className="flex items-center gap-2">
+          {isHost && (
+            <button
+              onClick={() => {
+                if (window.confirm('确定要中断当前游戏并返回等待大厅吗？')) {
+                  onSend('abort_game', {});
+                }
+              }}
+              className="text-3xs bg-red-955/80 border border-red-800/40 hover:bg-red-900 text-red-300 font-bold px-2 py-1 rounded-lg transition cursor-pointer"
+            >
+              中断游戏
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (window.confirm('确定要退出该房间吗？')) {
+                onLeave();
+              }
+            }}
+            className="text-3xs bg-slate-900 border border-slate-850 hover:bg-slate-800 text-gray-400 font-bold px-2 py-1 rounded-lg transition cursor-pointer"
+          >
+            退出房间
+          </button>
         </div>
       </div>
 
@@ -159,6 +199,15 @@ export function GameBoard({
                     <span className="text-gray-300">
                       {isMySpeakerTurn ? '轮到你描述了！' : `等待描述: ${currentSpeaker?.nickname || '???'}`}
                     </span>
+                    {timeLeft !== null && (
+                      <span className={`ml-2 px-1.5 py-0.5 rounded font-black text-2xs ${
+                        timeLeft <= 10
+                          ? 'text-red-400 bg-red-950/60 border border-red-500/30 animate-pulse'
+                          : 'text-indigo-400 bg-indigo-950/60 border border-indigo-900/30'
+                      }`}>
+                        {timeLeft}s
+                      </span>
+                    )}
                   </div>
                   <span className="text-2xs text-gray-500 font-bold bg-slate-900 px-2 py-0.5 rounded">
                     进度: {roomState.completedSpeakers.length} / {roomState.speakerOrder.length}

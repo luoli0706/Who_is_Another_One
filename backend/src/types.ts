@@ -30,11 +30,13 @@ export interface RoomState {
   currentRound: number;
   totalRounds: number;
   categoryIds: number[];
+  maxPlayers: number;
   ownerParticipates: boolean;
   ownerId: string;
   currentSpeakerId: string | null;
   speakerOrder: string[];
   completedSpeakers: string[];
+  speakerDeadline: number | null; // Unix timestamp in ms
   votes: Record<string, string>; // voterId -> targetId
   winner: 'civilian' | 'undercover' | null;
   leaderboard: Record<string, number>; // playerId -> score
@@ -56,11 +58,13 @@ export interface Room {
   currentRound: number;
   totalRounds: number;
   categoryIds: number[];
+  maxPlayers: number;
   ownerParticipates: boolean;
   ownerId: string;
   currentSpeakerId: string | null;
   speakerOrder: string[];
   completedSpeakers: string[];
+  speakerDeadline: number | null;
   votes: Map<string, string>; // voterId -> targetId
   winner: 'civilian' | 'undercover' | null;
   leaderboard: Map<string, number>; // playerId -> score

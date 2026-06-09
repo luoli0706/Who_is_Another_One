@@ -68,6 +68,12 @@ export default function App() {
     setActiveNickname(name);
   };
 
+  const handleLeaveRoom = () => {
+    send('leave_room', {});
+    setActiveRoomId(null);
+    setActiveNickname(null);
+  };
+
   if (currentView === 'contribute') {
     return <Contribute onBack={() => setCurrentView('game')} />;
   }
@@ -106,6 +112,7 @@ export default function App() {
         onJoin={handleJoinRoom}
         onSend={send}
         onNavigateToContribute={() => setCurrentView('contribute')}
+        onLeave={handleLeaveRoom}
       />
     );
   }
@@ -117,6 +124,7 @@ export default function App() {
         roomState={roomState}
         playerId={playerId}
         onSend={send}
+        onLeave={handleLeaveRoom}
       />
     );
   }
@@ -130,6 +138,7 @@ export default function App() {
       refereeWordOptions={refereeWordOptions}
       chatMessages={chatMessages}
       onSend={send}
+      onLeave={handleLeaveRoom}
     />
   );
 }

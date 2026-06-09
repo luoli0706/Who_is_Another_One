@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
     // 5. GET /api/rooms (Lobby Room List)
     if (req.method === 'GET' && pathname === '/api/rooms') {
       const activeRooms = roomManager.getAllRooms()
-        .filter(r => r.status === 'lobby' && r.players.size < r.totalRounds) // non-full lobby rooms
+        .filter(r => r.status === 'lobby' && r.players.size < r.maxPlayers) // non-full lobby rooms
         .map(r => {
           const ownerPlayer = r.players.get(r.ownerId);
           return {
@@ -173,6 +173,10 @@ wss.on('connection', (ws: ExtWebSocket) => {
               console.log(`Player ${nickname} (${playerId}) reconnected to Room ${roomId}`);
             } else {
               // Standard join
+              if (room.players.size >= room.maxPlayers) {
+                ws.send(JSON.stringify({ type: 'error', payload: { message: '房间人数已满，无法加入' } }));
+                return;
+              }
               roomManager.joinRoom(room, playerId, nickname, ws);
               console.log(`Player ${nickname} (${playerId}) joined Room ${roomId}`);
             }
@@ -201,10 +205,11 @@ wss.on('connection', (ws: ExtWebSocket) => {
           const room = roomManager.getRoom(ws.roomId);
           if (!room || room.ownerId !== ws.playerId) return;
 
-          const { mode, categoryIds, totalRounds, ownerParticipates } = payload;
+          const { mode, categoryIds, totalRounds, ownerParticipates, maxPlayers } = payload;
           room.mode = mode || 'online';
           room.categoryIds = categoryIds || [];
           room.totalRounds = totalRounds || 5;
+          room.maxPlayers = maxPlayers || 8;
           room.ownerParticipates = ownerParticipates !== undefined ? ownerParticipates : true;
           room.currentRound = 0;
           room.roundHistory = [];
@@ -318,11 +323,61 @@ wss.on('connection', (ws: ExtWebSocket) => {
           break;
         }
 
+        case 'leave_room': {
+          if (!ws.roomId || !ws.playerId) return;
+          const room = roomManager.getRoom(ws.roomId);
+          if (room) {
+            roomManager.leaveRoom(ws.roomId, ws.playerId);
+            roomManager.broadcastRoomState(room);
+          }
+          ws.roomId = undefined;
+          ws.playerId = undefined;
+          ws.send(JSON.stringify({ type: 'left_room' }));
+          break;
+        }
+
+        case 'abort_game': {
+          if (!ws.roomId || !ws.playerId) return;
+          const room = roomManager.getRoom(ws.roomId);
+          if (!room || room.ownerId !== ws.playerId) return;
+
+          roomManager.clearTurnTimer(room.id);
+          room.speakerDeadline = null;
+          room.status = 'lobby';
+          room.currentRound = 0;
+          room.winner = null;
+          room.roundHistory = [];
+          room.revealedWords = null;
+          room.wordA = null;
+          room.wordB = null;
+
+          roomManager.broadcastRoomState(room);
+          break;
+        }
+
+        case 'update_config': {
+          if (!ws.roomId || !ws.playerId) return;
+          const room = roomManager.getRoom(ws.roomId);
+          if (!room || room.ownerId !== ws.playerId || room.status !== 'lobby') return;
+
+          const { mode, categoryIds, maxPlayers, totalRounds, ownerParticipates } = payload;
+          room.mode = mode || 'online';
+          room.categoryIds = categoryIds || [];
+          room.maxPlayers = maxPlayers || 8;
+          room.totalRounds = totalRounds || 5;
+          room.ownerParticipates = ownerParticipates !== undefined ? ownerParticipates : true;
+
+          roomManager.broadcastRoomState(room);
+          break;
+        }
+
         case 'restart_game': {
           if (!ws.roomId || !ws.playerId) return;
           const room = roomManager.getRoom(ws.roomId);
           if (!room || room.ownerId !== ws.playerId) return;
 
+          roomManager.clearTurnTimer(room.id);
+          room.speakerDeadline = null;
           const { keepScore } = payload;
           room.status = 'lobby';
           room.currentRound = 0;

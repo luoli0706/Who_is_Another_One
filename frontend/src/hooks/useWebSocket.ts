@@ -92,6 +92,12 @@ export function useWebSocket(roomId: string | null, nickname: string | null, pla
             // The roomState broadcast will carry the new revealedWords,
             // but we can trigger a short alert or localized display from this event
             break;
+          case 'left_room':
+            setRoomState(null);
+            setYourWord(null);
+            setRefereeWordOptions([]);
+            setChatMessages([]);
+            break;
           case 'error':
             setErrorMsg(payload.message || 'An error occurred');
             break;

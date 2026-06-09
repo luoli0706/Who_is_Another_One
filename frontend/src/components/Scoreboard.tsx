@@ -5,9 +5,10 @@ interface ScoreboardProps {
   roomState: RoomState;
   playerId: string;
   onSend: (type: string, payload: any) => void;
+  onLeave: () => void;
 }
 
-export function Scoreboard({ roomState, playerId, onSend }: ScoreboardProps) {
+export function Scoreboard({ roomState, playerId, onSend, onLeave }: ScoreboardProps) {
   const isHost = roomState.ownerId === playerId;
   const isGrandFinale = roomState.currentRound >= roomState.totalRounds;
 
@@ -98,7 +99,7 @@ export function Scoreboard({ roomState, playerId, onSend }: ScoreboardProps) {
         </div>
 
         {/* Restart controls */}
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md space-y-3">
           {isHost ? (
             <div className="space-y-3">
               <button
@@ -131,6 +132,17 @@ export function Scoreboard({ roomState, playerId, onSend }: ScoreboardProps) {
               <span className="text-xs text-gray-400 font-semibold">等待房主选择重开选项...</span>
             </div>
           )}
+
+          <button
+            onClick={() => {
+              if (window.confirm('确定退出房间吗？')) {
+                onLeave();
+              }
+            }}
+            className="w-full bg-slate-850/80 hover:bg-slate-800/80 border border-slate-800 text-white text-xs font-bold py-3 rounded-xl transition shadow-lg shadow-slate-950/25"
+          >
+            退出房间
+          </button>
         </div>
       </div>
     );
@@ -211,7 +223,7 @@ export function Scoreboard({ roomState, playerId, onSend }: ScoreboardProps) {
       </div>
 
       {/* Round transition buttons */}
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-3">
         {isHost ? (
           <button
             onClick={() => onSend('next_round', {})}
@@ -226,6 +238,17 @@ export function Scoreboard({ roomState, playerId, onSend }: ScoreboardProps) {
             <span className="text-xs text-gray-400 font-semibold">等待法官开启下一回合发牌...</span>
           </div>
         )}
+
+        <button
+          onClick={() => {
+            if (window.confirm('确定退出房间吗？')) {
+              onLeave();
+            }
+          }}
+          className="w-full bg-slate-850/80 hover:bg-slate-800/80 border border-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition"
+        >
+          退出房间
+        </button>
       </div>
     </div>
   );

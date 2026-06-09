@@ -12,6 +12,7 @@ interface LobbyProps {
   onJoin: (rId: string, name: string) => void;
   onSend: (type: string, payload: any) => void;
   onNavigateToContribute: () => void;
+  onLeave: () => void;
 }
 
 interface ApiCategory {
@@ -37,7 +38,8 @@ export function Lobby({
   playerId,
   onJoin,
   onSend,
-  onNavigateToContribute
+  onNavigateToContribute,
+  onLeave
 }: LobbyProps) {
   // HTTP Fetch states
   const [categories, setCategories] = useState<ApiCategory[]>([]);
@@ -74,9 +76,21 @@ export function Lobby({
     }
   }, [roomState]);
 
-  // Handle Room creation
+  // Handle Room creation or config editing
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
+    if (roomState) {
+      // Edit existing room config
+      onSend('update_config', {
+        mode: createMode,
+        categoryIds: selectedCats,
+        maxPlayers,
+        totalRounds,
+        ownerParticipates
+      });
+      setShowCreateModal(false);
+      return;
+    }
     if (!nickname.trim()) return;
 
     // Generate random 4 digit room code
@@ -285,10 +299,10 @@ export function Lobby({
                   <label className="block text-xs font-bold text-gray-400 mb-1.5">最大玩家数</label>
                   <input
                     type="number"
-                    min="4"
+                    min="3"
                     max="12"
                     value={maxPlayers}
-                    onChange={(e) => setMaxPlayers(Math.max(4, Math.min(12, parseInt(e.target.value) || 4)))}
+                    onChange={(e) => setMaxPlayers(Math.max(3, Math.min(12, parseInt(e.target.value) || 8)))}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -457,7 +471,7 @@ export function Lobby({
             <div className="bg-slate-950/80 border border-slate-900 rounded-xl p-4 mb-5 space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">最大人数</span>
-                <span className="text-white font-bold">{roomState.players.length} / {roomState.totalRounds * 2}人 (当前限制)</span>
+                <span className="text-white font-bold">{roomState.players.length} / {roomState.maxPlayers}人</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">比赛总局数</span>
@@ -467,18 +481,34 @@ export function Lobby({
                 <span className="text-gray-400">线上模式房主参战</span>
                 <span className="text-white font-bold">{roomState.ownerParticipates ? '是' : '否 (法官观战)'}</span>
               </div>
+              <div className="pt-2 border-t border-slate-900 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateMode(roomState.mode);
+                    setMaxPlayers(roomState.maxPlayers || 8);
+                    setTotalRounds(roomState.totalRounds);
+                    setSelectedCats(roomState.categoryIds);
+                    setOwnerParticipates(roomState.ownerParticipates);
+                    setShowCreateModal(true);
+                  }}
+                  className="text-2xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-0.5 cursor-pointer"
+                >
+                  <Settings className="w-3 h-3" /> 修改配置
+                </button>
+              </div>
             </div>
 
             <button
               onClick={() => {
-                if (roomState.mode === 'online' && roomState.ownerParticipates && roomState.players.length < 4) {
-                  return alert('线上参赛模式至少需要 4 名玩家！');
+                if (roomState.mode === 'online' && roomState.ownerParticipates && roomState.players.length < 3) {
+                  return alert('线上参赛模式至少需要 3 名玩家！');
                 }
-                if (roomState.mode === 'online' && !roomState.ownerParticipates && roomState.players.length < 5) {
-                  return alert('裁判模式下，除去裁判外至少需要 4 名玩家（即总人数至少 5 人）！');
+                if (roomState.mode === 'online' && !roomState.ownerParticipates && roomState.players.length < 4) {
+                  return alert('裁判模式下，除去裁判外至少需要 3 名玩家（即总人数至少 4 人）！');
                 }
-                if (roomState.mode === 'offline' && roomState.players.length < 4) {
-                  return alert('线下发牌模式至少需要 4 名玩家！');
+                if (roomState.mode === 'offline' && roomState.players.length < 3) {
+                  return alert('线下发牌模式至少需要 3 名玩家！');
                 }
                 onSend('start_game', {
                   mode: roomState.mode,
@@ -501,17 +531,17 @@ export function Lobby({
         )}
       </div>
       
-      {/* Return button */}
-      <button
-        onClick={() => {
-          if (window.confirm('确定退出该房间吗？')) {
-            window.location.reload();
-          }
-        }}
-        className="text-xs text-gray-500 hover:text-gray-400 transition"
-      >
-        退出大厅
-      </button>
+        {/* Return button */}
+        <button
+          onClick={() => {
+            if (window.confirm('确定退出该房间吗？')) {
+              onLeave();
+            }
+          }}
+          className="text-xs text-gray-500 hover:text-gray-400 transition"
+        >
+          退出房间
+        </button>
     </div>
   );
 }

@@ -5,6 +5,40 @@ import * as db from './db';
 
 export class RoomManager {
   private rooms: Map<string, Room> = new Map();
+  private turnTimers: Map<string, NodeJS.Timeout> = new Map();
+
+  clearTurnTimer(roomId: string) {
+    const timer = this.turnTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.turnTimers.delete(roomId);
+    }
+  }
+
+  startTurnTimer(room: Room, speakerId: string) {
+    this.clearTurnTimer(room.id);
+    
+    room.speakerDeadline = Date.now() + 60000;
+    
+    const timer = setTimeout(() => {
+      const speaker = room.players.get(speakerId);
+      const nickname = speaker ? speaker.nickname : '玩家';
+      
+      this.broadcastToRoom(room, {
+        type: 'chat_message',
+        payload: {
+          senderId: 'system',
+          senderName: '系统',
+          text: `${nickname} 发言超时，已自动跳过。`
+        }
+      });
+      
+      room.completedSpeakers.push(speakerId);
+      this.advanceSpeaker(room);
+    }, 60000);
+    
+    this.turnTimers.set(room.id, timer);
+  }
 
   createRoom(roomId: string, mode: GameMode, ownerId: string, nickname: string, ws: WebSocket): Room {
     const room: Room = {
@@ -15,11 +49,13 @@ export class RoomManager {
       currentRound: 0,
       totalRounds: 5,
       categoryIds: [],
+      maxPlayers: 8,
       ownerParticipates: true,
       ownerId,
       currentSpeakerId: null,
       speakerOrder: [],
       completedSpeakers: [],
+      speakerDeadline: null,
       votes: new Map(),
       winner: null,
       leaderboard: new Map(),
@@ -129,6 +165,8 @@ export class RoomManager {
   }
 
   async setupGameRound(room: Room) {
+    this.clearTurnTimer(room.id);
+    room.speakerDeadline = null;
     room.currentRound++;
     room.votes.clear();
     room.revealedWords = null;
@@ -239,8 +277,22 @@ export class RoomManager {
     const activePlayers = playersArr.filter(p => p.role !== 'referee');
     
     const count = activePlayers.length;
-    // Determine undercover count: 1 undercover for 4-7 players, 2 undercovers for 8-12 players
-    const undercoverCount = count >= 8 ? 2 : 1;
+    if (count === 0) return;
+
+    // Determine undercover count: 6人及以下为1，7-9人为2，10-12人为3
+    let undercoverCount = 1;
+    if (count >= 10) {
+      undercoverCount = 3;
+    } else if (count >= 7) {
+      undercoverCount = 2;
+    } else {
+      undercoverCount = 1;
+    }
+
+    // 安全容错：如果卧底数大于等于总人数，保留至少一名平民，除非总人数就是 1
+    if (undercoverCount >= count && count > 1) {
+      undercoverCount = count - 1;
+    }
 
     // Shuffle active players to assign undercovers randomly
     const shuffledPlayers = [...activePlayers].sort(() => 0.5 - Math.random());
@@ -276,11 +328,13 @@ export class RoomManager {
     room.speakerOrder = generateSpeakerOrder(room, playerId);
     room.completedSpeakers = [];
     room.status = 'playing_description';
+    this.startTurnTimer(room, playerId);
   }
 
   handlePlayerDescription(room: Room, playerId: string, text: string) {
     if (room.status !== 'playing_description' || room.currentSpeakerId !== playerId) return;
 
+    this.clearTurnTimer(room.id);
     room.completedSpeakers.push(playerId);
     
     // Broadcast text to players via speaker log (handled by frontend state addition)
@@ -292,9 +346,12 @@ export class RoomManager {
     
     if (remaining.length > 0) {
       room.currentSpeakerId = remaining[0];
+      this.startTurnTimer(room, remaining[0]);
       this.broadcastRoomState(room);
     } else {
       // Everyone spoke once! Move to voting
+      this.clearTurnTimer(room.id);
+      room.speakerDeadline = null;
       room.currentSpeakerId = null;
       room.status = 'playing_voting';
       room.votes.clear();
@@ -408,6 +465,8 @@ export class RoomManager {
   }
 
   endGameRound(room: Room, winner: 'civilian' | 'undercover') {
+    this.clearTurnTimer(room.id);
+    room.speakerDeadline = null;
     room.winner = winner;
     room.status = 'ended';
 
@@ -464,11 +523,13 @@ export class RoomManager {
       currentRound: room.currentRound,
       totalRounds: room.totalRounds,
       categoryIds: room.categoryIds,
+      maxPlayers: room.maxPlayers,
       ownerParticipates: room.ownerParticipates,
       ownerId: room.ownerId,
       currentSpeakerId: room.currentSpeakerId,
       speakerOrder: room.speakerOrder,
       completedSpeakers: room.completedSpeakers,
+      speakerDeadline: room.speakerDeadline,
       votes: Object.fromEntries(room.votes.entries()),
       winner: room.winner,
       leaderboard: Object.fromEntries(room.leaderboard.entries()),
