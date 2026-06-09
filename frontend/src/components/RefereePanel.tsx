@@ -103,7 +103,7 @@ export function RefereePanel({
           <div className="space-y-3 mb-6">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-3xs font-bold text-gray-400 mb-1">平民词 (Word A)</label>
+                <label className="block text-3xs font-bold text-gray-400 mb-1">词汇 A</label>
                 <input
                   type="text"
                   placeholder="如: 咖啡"
@@ -113,7 +113,7 @@ export function RefereePanel({
                 />
               </div>
               <div>
-                <label className="block text-3xs font-bold text-gray-400 mb-1">卧底词 (Word B)</label>
+                <label className="block text-3xs font-bold text-gray-400 mb-1">词汇 B</label>
                 <input
                   type="text"
                   placeholder="如: 红茶"

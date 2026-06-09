@@ -492,7 +492,7 @@ export function Contribute({ onBack }: ContributeProps) {
                 {/* Inline Add Word form */}
                 <form onSubmit={handleAddWordPair} className="grid md:grid-cols-12 gap-3 items-end bg-slate-950/40 border border-slate-900 p-3 rounded-xl">
                   <div className="md:col-span-5">
-                    <label className="block text-3xs font-bold text-gray-400 mb-1">平民词词组 A</label>
+                    <label className="block text-3xs font-bold text-gray-400 mb-1">词汇 A</label>
                     <input
                       type="text"
                       placeholder="例: 牛奶"
@@ -503,7 +503,7 @@ export function Contribute({ onBack }: ContributeProps) {
                     />
                   </div>
                   <div className="md:col-span-5">
-                    <label className="block text-3xs font-bold text-gray-400 mb-1">卧底词词组 B (相似词)</label>
+                    <label className="block text-3xs font-bold text-gray-400 mb-1">词汇 B (相似词)</label>
                     <input
                       type="text"
                       placeholder="例: 豆浆"

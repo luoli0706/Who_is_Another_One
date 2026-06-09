@@ -302,12 +302,24 @@ wss.on('connection', (ws: ExtWebSocket) => {
 
           const { mode, wordPairId, customWordA, customWordB } = payload;
           if (mode === 'custom' && customWordA && customWordB) {
-            room.wordA = customWordA;
-            room.wordB = customWordB;
+            if (Math.random() > 0.5) {
+              room.wordA = customWordA;
+              room.wordB = customWordB;
+            } else {
+              room.wordA = customWordB;
+              room.wordB = customWordA;
+            }
           } else if (mode === 'select' && wordPairId) {
             // Find in db or use directly
-            room.wordA = customWordA || '平民词';
-            room.wordB = customWordB || '卧底词';
+            const wA = customWordA || '词汇 A';
+            const wB = customWordB || '词汇 B';
+            if (Math.random() > 0.5) {
+              room.wordA = wA;
+              room.wordB = wB;
+            } else {
+              room.wordA = wB;
+              room.wordB = wA;
+            }
           } else {
             // Random
             await roomManager.selectRandomWords(room);
