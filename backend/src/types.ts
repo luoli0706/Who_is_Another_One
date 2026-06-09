@@ -26,7 +26,7 @@ export interface RoomState {
   id: string;
   mode: GameMode;
   status: RoomStatus;
-  players: Omit<Player, 'currentWord'>[]; // Don't expose words to other players
+  players: (Omit<Player, 'currentWord'> & { currentWord?: string | null })[]; // Don't expose words to other players unless they are referee
   currentRound: number;
   totalRounds: number;
   categoryIds: number[];

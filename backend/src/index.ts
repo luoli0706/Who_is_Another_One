@@ -191,8 +191,7 @@ wss.on('connection', (ws: ExtWebSocket) => {
               ws.send(JSON.stringify({
                 type: 'your_word',
                 payload: {
-                  word: player.currentWord,
-                  role: player.role
+                  word: player.currentWord
                 }
               }));
             }

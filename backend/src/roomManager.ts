@@ -315,8 +315,7 @@ export class RoomManager {
         this.sendToPlayer(p.ws, {
           type: 'your_word',
           payload: {
-            word: p.currentWord,
-            role: p.role
+            word: p.currentWord
           }
         });
       }
@@ -511,9 +510,21 @@ export class RoomManager {
     this.broadcastRoomState(room);
   }
 
-  getSerializableState(room: Room): RoomState {
+  getSerializableStateForPlayer(room: Room, playerId: string): RoomState {
     const playersArr = Array.from(room.players.values());
-    const players = playersArr.map(({ ws, currentWord, ...rest }) => rest);
+    const recipient = room.players.get(playerId);
+    const isRecipientReferee = recipient?.role === 'referee';
+
+    const players = playersArr.map(({ ws, currentWord, role, ...rest }) => {
+      // Expose details if status is ended, lobby, or the recipient is the referee.
+      const showDetails = room.status === 'ended' || room.status === 'lobby' || isRecipientReferee;
+      
+      return {
+        ...rest,
+        role: showDetails ? role : (role === 'referee' ? 'referee' : null),
+        ...(showDetails ? { currentWord } : {})
+      };
+    });
 
     return {
       id: room.id,
@@ -538,11 +549,23 @@ export class RoomManager {
     };
   }
 
+  getSerializableState(room: Room): RoomState {
+    return this.getSerializableStateForPlayer(room, '');
+  }
+
   broadcastRoomState(room: Room) {
-    const state = this.getSerializableState(room);
-    this.broadcastToRoom(room, {
-      type: 'room_state',
-      payload: state
+    room.players.forEach(p => {
+      if (p.ws.readyState === WebSocket.OPEN) {
+        const state = this.getSerializableStateForPlayer(room, p.id);
+        try {
+          p.ws.send(JSON.stringify({
+            type: 'room_state',
+            payload: state
+          }));
+        } catch (e) {
+          console.error('WS broadcast error:', e);
+        }
+      }
     });
   }
 

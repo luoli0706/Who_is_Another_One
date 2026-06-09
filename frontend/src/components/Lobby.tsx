@@ -57,18 +57,20 @@ export function Lobby({
 
   // Fetch categories and active rooms
   useEffect(() => {
-    if (!roomState) {
-      fetch('/api/categories')
-        .then(res => res.json())
-        .then(data => {
-          setCategories(data);
-          // Auto select first category
-          if (data.length > 0) {
-            setSelectedCats([data[0].id]);
-          }
-        })
-        .catch(err => console.error('Error fetching categories:', err));
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        setCategories(data);
+        // Auto select first category if selectedCats is empty
+        if (data.length > 0 && selectedCats.length === 0) {
+          setSelectedCats([data[0].id]);
+        }
+      })
+      .catch(err => console.error('Error fetching categories:', err));
+  }, []);
 
+  useEffect(() => {
+    if (!roomState) {
       fetch('/api/rooms')
         .then(res => res.json())
         .then(data => setActiveRooms(data))
@@ -543,6 +545,146 @@ export function Lobby({
         >
           退出房间
         </button>
+
+        {/* Room Creation Configuration Modal (for Lobby Wait Status) */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <form onSubmit={handleCreateRoom} className="w-full max-w-md glass-card rounded-2xl p-6 border border-slate-800">
+              <div className="flex items-center gap-2 mb-4 border-b border-slate-800 pb-3">
+                <Settings className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-lg font-bold text-white">修改房间配置</h3>
+              </div>
+
+              {/* Mode Selection */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">游戏模式</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCreateMode('online')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition ${
+                      createMode === 'online'
+                        ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300'
+                        : 'bg-slate-900 border-slate-800 text-gray-400 hover:border-slate-700'
+                    }`}
+                  >
+                    线上模式 (系统流转)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateMode('offline')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition ${
+                      createMode === 'offline'
+                        ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300'
+                        : 'bg-slate-900 border-slate-800 text-gray-400 hover:border-slate-700'
+                    }`}
+                  >
+                    线下模式 (联机发牌)
+                  </button>
+                </div>
+              </div>
+
+              {/* Rounds & Players */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5">最大玩家数</label>
+                  <input
+                    type="number"
+                    min="3"
+                    max="12"
+                    value={maxPlayers}
+                    onChange={(e) => setMaxPlayers(Math.max(3, Math.min(12, parseInt(e.target.value) || 8)))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 mb-1.5">比赛局数</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={totalRounds}
+                    onChange={(e) => setTotalRounds(Math.max(1, Math.min(10, parseInt(e.target.value) || 5)))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Owner role (only for online mode) */}
+              {createMode === 'online' && (
+                <div className="mb-4 bg-slate-950/60 border border-slate-900 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1">
+                      <span>房主亲自参赛</span>
+                      <ShieldAlert className="w-3 h-3 text-indigo-400" />
+                    </div>
+                    <div className="text-2xs text-gray-500 mt-0.5">关闭后房主充当法官，主持选词与指定先手</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={ownerParticipates}
+                    onChange={(e) => setOwnerParticipates(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-slate-700 bg-slate-900 rounded focus:ring-indigo-500"
+                  />
+                </div>
+              )}
+
+              {/* Choose Word Libraries */}
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">勾选游戏词库 (可多选)</label>
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="flex items-center justify-between p-2 bg-slate-900/40 border border-slate-900 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`lobby-edit-cat-${cat.id}`}
+                          checked={selectedCats.includes(cat.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCats([...selectedCats, cat.id]);
+                            } else {
+                              setSelectedCats(selectedCats.filter(id => id !== cat.id));
+                            }
+                          }}
+                          className="w-3.5 h-3.5 text-indigo-600 bg-slate-900 rounded focus:ring-indigo-500"
+                        />
+                        <label htmlFor={`lobby-edit-cat-${cat.id}`} className="text-xs font-semibold text-gray-200">
+                          {cat.name} ({cat.word_count}对)
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewCategory(cat.id, cat.name)}
+                        className="text-2xs text-gray-400 hover:text-indigo-400 flex items-center gap-0.5"
+                      >
+                        <Eye className="w-3 h-3" /> 预览
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 rounded-xl transition"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={selectedCats.length === 0}
+                  className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-lg shadow-indigo-500/25"
+                >
+                  确认修改
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
     </div>
   );
 }

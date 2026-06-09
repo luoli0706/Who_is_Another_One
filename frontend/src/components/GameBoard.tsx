@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { EyeOff, Send, Check } from 'lucide-react';
+import { EyeOff, Send, Check, ShieldAlert } from 'lucide-react';
 import type { RoomState, Player } from '../../../backend/src/types';
 import type { YourWord, ChatMessage } from '../hooks/useWebSocket';
 import { RefereePanel } from './RefereePanel';
@@ -137,6 +137,52 @@ export function GameBoard({
           />
         ) : (
           <>
+            {/* Referee God View Console (Online Mode) */}
+            {isReferee && (roomState.status === 'playing_description' || roomState.status === 'playing_voting') && (
+              <div className="glass-card rounded-2xl p-5 border border-slate-900 w-full">
+                <div className="flex items-center gap-2 mb-3 border-b border-slate-800 pb-2">
+                  <ShieldAlert className="w-4 h-4 text-indigo-400 animate-pulse-glow" />
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">法官天眼控制台 (线上模式)</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {roomState.players
+                    .filter(p => p.role !== 'referee')
+                    .map(p => (
+                      <div
+                        key={p.id}
+                        className={`p-2 bg-slate-950/60 border rounded-xl flex items-center justify-between text-xs ${
+                          p.isAlive
+                            ? p.role === 'undercover'
+                              ? 'border-red-950/80 bg-red-955/5'
+                              : 'border-slate-900'
+                            : 'border-slate-950 opacity-40'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-white flex items-center gap-1">
+                            <span>{p.nickname}</span>
+                            <span className="text-4xs text-gray-500">({p.sequence}号)</span>
+                          </div>
+                          <div className="text-4xs text-gray-400 mt-0.5">
+                            词汇: <span className={p.role === 'undercover' ? 'text-red-400' : 'text-emerald-400'}>{p.currentWord || '无'}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-4xs px-1 py-0.5 rounded font-black uppercase ${
+                            p.role === 'undercover'
+                              ? 'bg-red-950 border border-red-500/20 text-red-400'
+                              : 'bg-emerald-950 border border-emerald-500/20 text-emerald-400'
+                          }`}>
+                            {p.role === 'undercover' ? '卧底' : '平民'}
+                          </span>
+                          <div className="text-4xs text-gray-500 mt-1">{p.isAlive ? '存活' : '已淘汰'}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* Word Card for non-referee and alive players */}
             {!isReferee && isAlive && yourWord && (
               <div className="glass-card rounded-2xl p-5 border border-slate-900 text-center relative overflow-hidden">
@@ -157,9 +203,6 @@ export function GameBoard({
                     <>
                       <div className="text-2xl font-black text-indigo-400 tracking-wide animate-pulse-glow">
                         {yourWord.word}
-                      </div>
-                      <div className="text-4xs text-indigo-500 font-bold uppercase mt-1 tracking-widest">
-                        角色: {yourWord.role === 'undercover' ? '卧底' : '平民'}
                       </div>
                     </>
                   ) : (

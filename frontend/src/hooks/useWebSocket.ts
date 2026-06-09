@@ -10,7 +10,7 @@ export interface ChatMessage {
 
 export interface YourWord {
   word: string;
-  role: 'civilian' | 'undercover';
+  role?: 'civilian' | 'undercover';
 }
 
 export interface RefereeWordOption {
