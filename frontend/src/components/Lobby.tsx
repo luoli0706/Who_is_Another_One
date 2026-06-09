@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Users, Settings, LogIn, Eye, ShieldAlert, FilePlus } from 'lucide-react';
 import type { RoomState } from '../../../backend/src/types';
+import { API_BASE } from '../config';
 
 interface LobbyProps {
   roomState: RoomState | null;
@@ -57,7 +58,7 @@ export function Lobby({
 
   // Fetch categories and active rooms
   useEffect(() => {
-    fetch('/api/categories')
+    fetch(API_BASE + '/categories')
       .then(res => res.json())
       .then(data => {
         setCategories(data);
@@ -71,7 +72,7 @@ export function Lobby({
 
   useEffect(() => {
     if (!roomState) {
-      fetch('/api/rooms')
+      fetch(API_BASE + '/rooms')
         .then(res => res.json())
         .then(data => setActiveRooms(data))
         .catch(err => console.error('Error fetching rooms:', err));
@@ -115,7 +116,7 @@ export function Lobby({
 
   // Preview Category word list
   const handlePreviewCategory = (catId: number, catName: string) => {
-    fetch(`/api/categories/${catId}/words`)
+    fetch(`${API_BASE}/categories/${catId}/words`)
       .then(res => res.json())
       .then(data => {
         setPreviewWords(data);

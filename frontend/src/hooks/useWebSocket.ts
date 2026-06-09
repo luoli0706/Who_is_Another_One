@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { RoomState, WsMessage } from '../../../backend/src/types';
+import { WS_PATH } from '../config';
 
 export interface ChatMessage {
   senderId: string;
@@ -47,7 +48,7 @@ export function useWebSocket(roomId: string | null, nickname: string | null, pla
     // Use current browser host, Vite proxy will map /ws to 17712 port automatically
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const host = window.location.host;
-    const wsUrl = `${protocol}${host}/ws`;
+    const wsUrl = `${protocol}${host}${WS_PATH}`;
 
     console.log(`Connecting to WebSocket: ${wsUrl}`);
     const socket = new WebSocket(wsUrl);

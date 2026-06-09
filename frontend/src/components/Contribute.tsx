@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../config';
 import {
   ArrowLeft,
   BookOpen,
@@ -74,7 +75,7 @@ export function Contribute({ onBack }: ContributeProps) {
 
   // Load all categories from backend
   const loadCategories = (selectId?: number) => {
-    fetch('/api/categories')
+    fetch(API_BASE + '/categories')
       .then(res => res.json())
       .then(data => {
         setCategories(data);
@@ -94,7 +95,7 @@ export function Contribute({ onBack }: ContributeProps) {
 
   // Load word pairs for a category
   const loadWords = (catId: number) => {
-    fetch(`/api/categories/${catId}/words`)
+    fetch(`${API_BASE}/categories/${catId}/words`)
       .then(res => res.json())
       .then(data => setWords(data))
       .catch(err => console.error('Error fetching words:', err));
@@ -102,7 +103,7 @@ export function Contribute({ onBack }: ContributeProps) {
 
   // Load backups for a category
   const loadBackups = (catId: number) => {
-    fetch(`/api/categories/${catId}/backups`)
+    fetch(`${API_BASE}/categories/${catId}/backups`)
       .then(res => res.json())
       .then(data => setBackups(data))
       .catch(err => console.error('Error fetching backups:', err));
@@ -123,7 +124,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!newCatName.trim()) return;
 
     try {
-      const res = await fetch('/api/categories', {
+      const res = await fetch(API_BASE + '/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCatName, description: newCatDesc })
@@ -150,7 +151,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!selectedCat || !editName.trim()) return;
 
     try {
-      const res = await fetch(`/api/categories/${selectedCat.id}`, {
+      const res = await fetch(`${API_BASE}/categories/${selectedCat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() })
@@ -174,7 +175,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!window.confirm(`确定要彻底删除词库【${selectedCat.name}】吗？这将删除该词库下的所有词组对和备份记录！`)) return;
 
     try {
-      const res = await fetch(`/api/categories/${selectedCat.id}`, {
+      const res = await fetch(`${API_BASE}/categories/${selectedCat.id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -198,7 +199,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!selectedCat || !wordA.trim() || !wordB.trim()) return;
 
     try {
-      const res = await fetch(`/api/categories/${selectedCat.id}/words`, {
+      const res = await fetch(`${API_BASE}/categories/${selectedCat.id}/words`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word_a: wordA.trim(), word_b: wordB.trim() })
@@ -225,7 +226,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!selectedCat) return;
 
     try {
-      const res = await fetch(`/api/categories/${selectedCat.id}/words/${wordId}`, {
+      const res = await fetch(`${API_BASE}/categories/${selectedCat.id}/words/${wordId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -247,7 +248,7 @@ export function Contribute({ onBack }: ContributeProps) {
     if (!window.confirm(`确定要将词库【${selectedCat.name}】回退至 ${new Date(backupDate).toLocaleString()} 的备份版本吗？这会覆盖当前的词汇对列表！`)) return;
 
     try {
-      const res = await fetch(`/api/categories/${selectedCat.id}/backups/${backupId}/rollback`, {
+      const res = await fetch(`${API_BASE}/categories/${selectedCat.id}/backups/${backupId}/rollback`, {
         method: 'POST'
       });
       if (res.ok) {
