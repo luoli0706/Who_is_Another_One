@@ -183,6 +183,13 @@ export class RoomManager {
     });
 
     if (room.mode === 'offline') {
+      room.ownerParticipates = false;
+      const referee = room.players.get(room.ownerId);
+      if (referee) {
+        referee.role = 'referee';
+        referee.isAlive = false; // Referee doesn't participate
+      }
+
       // Offline mode: Random select word pair and assign roles directly
       await this.selectRandomWords(room);
       this.assignRolesAndWords(room);

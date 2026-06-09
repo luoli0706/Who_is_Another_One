@@ -286,7 +286,7 @@ wss.on('connection', (ws: ExtWebSocket) => {
           room.categoryIds = categoryIds || [];
           room.totalRounds = totalRounds || 5;
           room.maxPlayers = maxPlayers || 8;
-          room.ownerParticipates = ownerParticipates !== undefined ? ownerParticipates : true;
+          room.ownerParticipates = room.mode === 'offline' ? false : (ownerParticipates !== undefined ? ownerParticipates : true);
           room.currentRound = 0;
           room.roundHistory = [];
 
@@ -453,7 +453,7 @@ wss.on('connection', (ws: ExtWebSocket) => {
           room.categoryIds = categoryIds || [];
           room.maxPlayers = maxPlayers || 8;
           room.totalRounds = totalRounds || 5;
-          room.ownerParticipates = ownerParticipates !== undefined ? ownerParticipates : true;
+          room.ownerParticipates = room.mode === 'offline' ? false : (ownerParticipates !== undefined ? ownerParticipates : true);
 
           roomManager.broadcastRoomState(room);
           break;

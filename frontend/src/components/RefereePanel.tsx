@@ -259,7 +259,7 @@ export function RefereePanel({
                   )}
                 </div>
                 <div className="text-3xs text-gray-500 mt-1">
-                  身份: {p.role === 'undercover' ? '卧底' : '平民'} · 状态: {p.isAlive ? '存活' : '已淘汰'}
+                  身份: {p.role === 'undercover' ? '卧底' : '平民'} · 词汇: <span className={p.role === 'undercover' ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>{p.currentWord || '???'}</span> · 状态: {p.isAlive ? '存活' : '已淘汰'}
                 </div>
               </div>
 

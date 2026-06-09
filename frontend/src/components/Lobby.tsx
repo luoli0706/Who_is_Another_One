@@ -88,7 +88,7 @@ export function Lobby({
         categoryIds: selectedCats,
         maxPlayers,
         totalRounds,
-        ownerParticipates
+        ownerParticipates: createMode === 'offline' ? false : ownerParticipates
       });
       setShowCreateModal(false);
       return;
@@ -106,7 +106,7 @@ export function Lobby({
         categoryIds: selectedCats,
         maxPlayers,
         totalRounds,
-        ownerParticipates
+        ownerParticipates: createMode === 'offline' ? false : ownerParticipates
       });
     }, 400);
 
@@ -479,10 +479,17 @@ export function Lobby({
                 <span className="text-gray-400">比赛总局数</span>
                 <span className="text-white font-bold">{roomState.totalRounds}局</span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">线上模式房主参战</span>
-                <span className="text-white font-bold">{roomState.ownerParticipates ? '是' : '否 (法官观战)'}</span>
-              </div>
+              {roomState.mode === 'online' ? (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">线上模式房主参战</span>
+                  <span className="text-white font-bold">{roomState.ownerParticipates ? '是' : '否 (法官观战)'}</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">线下模式法官亲自发牌</span>
+                  <span className="text-white font-bold">是 (法官不参赛)</span>
+                </div>
+              )}
               <div className="pt-2 border-t border-slate-900 flex justify-end">
                 <button
                   type="button"
@@ -509,14 +516,14 @@ export function Lobby({
                 if (roomState.mode === 'online' && !roomState.ownerParticipates && roomState.players.length < 4) {
                   return alert('裁判模式下，除去裁判外至少需要 3 名玩家（即总人数至少 4 人）！');
                 }
-                if (roomState.mode === 'offline' && roomState.players.length < 3) {
-                  return alert('线下发牌模式至少需要 3 名玩家！');
+                if (roomState.mode === 'offline' && roomState.players.length < 4) {
+                  return alert('线下发牌模式下，除去法官外至少需要 3 名玩家（即总人数至少 4 人）！');
                 }
                 onSend('start_game', {
                   mode: roomState.mode,
                   categoryIds: roomState.categoryIds,
                   totalRounds: roomState.totalRounds,
-                  ownerParticipates: roomState.ownerParticipates,
+                  ownerParticipates: roomState.mode === 'offline' ? false : roomState.ownerParticipates,
                   maxPlayers: roomState.maxPlayers
                 });
               }}
