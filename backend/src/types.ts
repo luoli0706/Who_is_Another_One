@@ -48,6 +48,7 @@ export interface RoomState {
     eliminatedPlayers: { nickname: string; role: string; word: string }[];
   }[];
   revealedWords: Record<string, string> | null; // playerId -> word (revealed at the end of round/game)
+  showGrandFinale: boolean;
 }
 
 export interface Room {
@@ -73,6 +74,7 @@ export interface Room {
   wordB: string | null; // undercover word
   undercoverId: string | null;
   revealedWords: Map<string, string> | null;
+  showGrandFinale: boolean;
 }
 
 export interface WsMessage<T = any> {

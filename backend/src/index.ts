@@ -385,6 +385,7 @@ wss.on('connection', (ws: ExtWebSocket) => {
           room.revealedWords = null;
           room.wordA = null;
           room.wordB = null;
+          room.showGrandFinale = false;
 
           if (!keepScore) {
             room.leaderboard.clear();
@@ -393,6 +394,16 @@ wss.on('connection', (ws: ExtWebSocket) => {
             });
           }
 
+          roomManager.broadcastRoomState(room);
+          break;
+        }
+
+        case 'show_grand_finale': {
+          if (!ws.roomId || !ws.playerId) return;
+          const room = roomManager.getRoom(ws.roomId);
+          if (!room || room.ownerId !== ws.playerId || room.status !== 'ended') return;
+
+          room.showGrandFinale = true;
           roomManager.broadcastRoomState(room);
           break;
         }

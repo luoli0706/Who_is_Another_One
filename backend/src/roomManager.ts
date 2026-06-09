@@ -63,7 +63,8 @@ export class RoomManager {
       wordA: null,
       wordB: null,
       undercoverId: null,
-      revealedWords: null
+      revealedWords: null,
+      showGrandFinale: false
     };
 
     // Add owner as the first player
@@ -171,6 +172,7 @@ export class RoomManager {
     room.votes.clear();
     room.revealedWords = null;
     room.winner = null;
+    room.showGrandFinale = false;
 
     // Reset player states for the new round
     room.players.forEach(p => {
@@ -468,6 +470,7 @@ export class RoomManager {
     room.speakerDeadline = null;
     room.winner = winner;
     room.status = 'ended';
+    room.showGrandFinale = false;
 
     // Calculate scores
     const scoreDeltas = calculateRoundScores(room, winner, room.votes);
@@ -545,7 +548,8 @@ export class RoomManager {
       winner: room.winner,
       leaderboard: Object.fromEntries(room.leaderboard.entries()),
       roundHistory: room.roundHistory,
-      revealedWords: room.revealedWords ? Object.fromEntries(room.revealedWords.entries()) : null
+      revealedWords: room.revealedWords ? Object.fromEntries(room.revealedWords.entries()) : null,
+      showGrandFinale: room.showGrandFinale
     };
   }
 

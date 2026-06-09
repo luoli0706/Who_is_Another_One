@@ -10,7 +10,8 @@ interface ScoreboardProps {
 
 export function Scoreboard({ roomState, playerId, onSend, onLeave }: ScoreboardProps) {
   const isHost = roomState.ownerId === playerId;
-  const isGrandFinale = roomState.currentRound >= roomState.totalRounds;
+  const isLastRound = roomState.currentRound >= roomState.totalRounds;
+  const isGrandFinale = isLastRound && roomState.showGrandFinale;
 
   // Sort leaderboard players by score descending
   const sortedPlayers = Object.entries(roomState.leaderboard)
@@ -225,17 +226,29 @@ export function Scoreboard({ roomState, playerId, onSend, onLeave }: ScoreboardP
       {/* Round transition buttons */}
       <div className="w-full max-w-md space-y-3">
         {isHost ? (
-          <button
-            onClick={() => onSend('next_round', {})}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/25 animate-pulse-glow"
-          >
-            <span>进入下一回合</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          isLastRound ? (
+            <button
+              onClick={() => onSend('show_grand_finale', {})}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/25 animate-pulse-glow"
+            >
+              <span>查看终极排行榜</span>
+              <Trophy className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => onSend('next_round', {})}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/25 animate-pulse-glow"
+            >
+              <span>进入下一回合</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )
         ) : (
           <div className="text-center py-3.5 bg-slate-950/40 rounded-xl border border-slate-900">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse mr-2"></span>
-            <span className="text-xs text-gray-400 font-semibold">等待法官开启下一回合发牌...</span>
+            <span className="text-xs text-gray-400 font-semibold">
+              {isLastRound ? '等待法官揭晓终极排行榜...' : '等待法官开启下一回合发牌...'}
+            </span>
           </div>
         )}
 
